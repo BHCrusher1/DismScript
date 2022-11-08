@@ -343,7 +343,7 @@ while ($escape -eq $false) {
             Write-Output ("wimファイルをマウントします。")
             $index = Read-Host "インデックス番号を入力してください。"
             
-            Dism /Export-Image /SourceImageFile:$editTerget /SourceIndex:$index /DestinationImageFile:$DestTarget
+            Dism /Export-Image /SourceImageFile:$editTerget /SourceIndex:$index /DestinationImageFile:$DestTarget /Compress:max
         }
         5 {
             $oscdimg = "C:\Program Files (x86)\Windows Kits\10\Assessment and Deployment Kit\Deployment Tools\amd64\Oscdimg\oscdimg.exe"
