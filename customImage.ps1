@@ -1,9 +1,12 @@
+# The character code of this file is ShiftJIS!!!
 # 管理者権限で実行
 if (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole("Administrators")) { Start-Process powershell.exe "-File `"$PSCommandPath`"" -Verb RunAs; exit }
 
 ######################################
 # 関数のセット
 ######################################
+
+# Yes/No ダイアログ
 function Get-YesNoDialog {
     $title = $args.Title
     $message = $args.Message
@@ -20,6 +23,7 @@ function Get-YesNoDialog {
     }
 }
 
+# フォルダ選択ダイアログ
 function Set-Directory {
     Add-Type -AssemblyName System.Windows.Forms
     $folderBrowser = New-Object System.Windows.Forms.FolderBrowserDialog -Property @{ 
@@ -35,6 +39,109 @@ function Set-Directory {
     }
 }
 
+# ドライバのインストール
+function Install-Driver {
+    $driverInstallMsg = @{
+        Title   = "ドライバのインストール"
+        Message = "ドライバをインストールしてよろしいですか？"
+        YesMsg  = "ドライバのインストールをします。"
+        NoMsg   = "ドライバのインストールを中止します。"
+    }
+    $driverInstall = Get-YesNoDialog $driverInstallMsg
+    if ($driverInstall -eq $true) {
+        Write-Output ("ドライバのインストールをします。")
+        Dism /Image:$offlineDirectory /Add-Driver /Driver:$driverDirectory /recurse
+        Write-Output ("ドライバのインストールが完了しました。")
+    }
+    else {
+        Write-Output ("ドライバのインストールを中止しました。")
+    }
+    pause
+}
+
+function Remove-UWP {
+    # プロビジョニングされたUWPアプリの削除
+    if ($editTerget -eq $installWim) {
+        $deleteUwpAppsMsg = @{
+            Title   = "プロビジョニングされたUWPアプリの削除"
+            Message = "プロビジョニングされたUWPアプリを削除してよろしいですか？"
+            YesMsg  = "プロビジョニングされたUWPアプリの削除をします。"
+            NoMsg   = "プロビジョニングされたUWPアプリの削除を中止します。"
+        }
+        $deleteUwpApps = Get-YesNoDialog $deleteUwpAppsMsg
+        if ($deleteUwpApps -eq $true) {
+            $isWindows11Msg = @{
+                Title   = "OSの確認"
+                Message = "このイメージはWindows 11 22H2ですか？"
+                YesMsg  = "はい。このイメージはWindows 11 22H2です。"
+                NoMsg   = "いいえ。このイメージはWindows 10 21H2です。"
+            }
+            $isWindows11 = Get-YesNoDialog $isWindows11Msg
+            if ($isWindows11 -eq $true) {
+                Write-Output ("Windows 11 22H2のプロビジョニングされたUWPアプリの削除をします。")
+                .\Get-ProvisionedAppxPackages_Win10_22H2.ps1
+            }
+            else {
+                Write-Output ("Windows 10 2004-22H2のプロビジョニングされたUWPアプリの削除をします。")
+                .\Get-ProvisionedAppxPackages_Win11_22H2.ps1
+            }
+            Write-Output ("プロビジョニングされたUWPアプリの削除が完了しました。")
+        }
+        else {
+            Write-Output ("プロビジョニングされたUWPアプリの削除を中止しました。")
+        }
+    }
+    else {
+        Write-Output ("プロビジョニングされたUWPアプリの削除はinstall.wim以外には行えません。")
+    }
+    pause
+}
+
+function Install-WindowsUpdate {
+    # 更新プログラムのインストール
+    if ($editTerget -eq $installWim) {
+        $updateProgramMsg = @{
+            Title   = "更新プログラム"
+            Message = "更新プログラムをインストールしてよろしいですか？"
+            YesMsg  = "更新プログラムのインストールをします。"
+            NoMsg   = "更新プログラムのインストールを中止します。"
+        }
+        $updateProgram = Get-YesNoDialog $updateProgramMsg
+        if ($updateProgram -eq $true) {
+            Write-Output ("更新プログラムのインストールをします。")
+            # 適用する KB 取得
+            [array]$kbs = Get-ChildItem $updateDirectory\*.msu -Recurse
+            # KB 適用
+            foreach ( $kb in $kbs ) {
+                $kbFullName = $kb.FullName
+                Dism /Image:$offlineDirectory /Add-Package /PackagePath:$kbFullName
+            }
+            Write-Output ("更新プログラムのインストールが完了しました。")
+        }
+        else {
+            Write-Output ("更新プログラムのインストールを中止しました。")
+        }
+    }
+    else {
+        Write-Output ("更新プログラムのインストールはinstall.wim以外には行えません。")
+    }
+    pause
+}
+
+function Set-Registry {
+    # レジストリの編集
+    Write-Output ("レジストリの編集をします。")
+    reg load HKEY_USERS\DefaultUser (Join-Path $offlineDirectory "Users\Default\ntuser.dat")
+    regedit.exe
+    Write-Output ("HKEY_LOCAL_MACHINE\Offline を編集してください。")
+    Write-Output ("regeditでの編集が終了したら続行してください。")
+    pause
+    reg unload HKEY_USERS\DefaultUser
+    Write-Output ("レジストリの編集が完了しました。")
+    pause
+}
+
+# Dismマウント後
 function Mount-Dism {
     $offlineEscape = $false
     while ($offlineEscape -eq $false) {
@@ -60,108 +167,23 @@ function Mount-Dism {
         $offlineSelectNumber = Read-Host "実行する作業の番号を入力してください。"
         switch ($offlineSelectNumber) {
             1 {
-                # ドライバのインストール
-                $driverInstallMsg = @{
-                    Title   = "ドライバのインストール"
-                    Message = "ドライバをインストールしてよろしいですか？"
-                    YesMsg  = "ドライバのインストールをします。"
-                    NoMsg   = "ドライバのインストールを中止します。"
-                }
-                $driverInstall = Get-YesNoDialog $driverInstallMsg
-                if ($driverInstall -eq $true) {
-                    Write-Output ("ドライバのインストールをします。")
-                    Dism /Image:$offlineDirectory /Add-Driver /Driver:$driverDirectory /recurse
-                    Write-Output ("ドライバのインストールが完了しました。")
-                }
-                else {
-                    Write-Output ("ドライバのインストールを中止しました。")
-                }
-                pause
+                Install-Driver
                 break
             }
             2 {
-                # プロビジョニングされたUWPアプリの削除
-                if ($editTerget -eq $installWim) {
-                    $deleteUwpAppsMsg = @{
-                        Title   = "プロビジョニングされたUWPアプリの削除"
-                        Message = "プロビジョニングされたUWPアプリを削除してよろしいですか？"
-                        YesMsg  = "プロビジョニングされたUWPアプリの削除をします。"
-                        NoMsg   = "プロビジョニングされたUWPアプリの削除を中止します。"
-                    }
-                    $deleteUwpApps = Get-YesNoDialog $deleteUwpAppsMsg
-                    if ($deleteUwpApps -eq $true) {
-                        $isWindows11Msg = @{
-                            Title   = "OSの確認"
-                            Message = "このイメージはWindows 11 22H2ですか？"
-                            YesMsg  = "はい。このイメージはWindows 11 22H2です。"
-                            NoMsg   = "いいえ。このイメージはWindows 10 21H2です。"
-                        }
-                        $isWindows11 = Get-YesNoDialog $isWindows11Msg
-                        if ($isWindows11 -eq $true) {
-                            Write-Output ("Windows 11 22H2のプロビジョニングされたUWPアプリの削除をします。")
-                            .\Get-ProvisionedAppxPackages_Win10_22H2.ps1
-                        }
-                        else {
-                            Write-Output ("Windows 10 2004-22H2のプロビジョニングされたUWPアプリの削除をします。")
-                            .\Get-ProvisionedAppxPackages_Win11_22H2.ps1
-                        }
-                        Write-Output ("プロビジョニングされたUWPアプリの削除が完了しました。")
-                    }
-                    else {
-                        Write-Output ("プロビジョニングされたUWPアプリの削除を中止しました。")
-                    }
-                }
-                else {
-                    Write-Output ("プロビジョニングされたUWPアプリの削除はinstall.wim以外には行えません。")
-                }
-                pause
+                Remove-UWP
                 break
             }
             3 {
-                # 更新プログラムのインストール
-                if ($editTerget -eq $installWim) {
-                    $updateProgramMsg = @{
-                        Title   = "更新プログラム"
-                        Message = "更新プログラムをインストールしてよろしいですか？"
-                        YesMsg  = "更新プログラムのインストールをします。"
-                        NoMsg   = "更新プログラムのインストールを中止します。"
-                    }
-                    $updateProgram = Get-YesNoDialog $updateProgramMsg
-                    if ($updateProgram -eq $true) {
-                        Write-Output ("更新プログラムのインストールをします。")
-                        # 適用する KB 取得
-                        [array]$kbs = Get-ChildItem $updateDirectory\*.msu -Recurse
-                        # KB 適用
-                        foreach ( $kb in $kbs ) {
-                            $kbFullName = $kb.FullName
-                            Dism /Image:$offlineDirectory /Add-Package /PackagePath:$kbFullName
-                        }
-                        Write-Output ("更新プログラムのインストールが完了しました。")
-                    }
-                    else {
-                        Write-Output ("更新プログラムのインストールを中止しました。")
-                    }
-                }
-                else {
-                    Write-Output ("更新プログラムのインストールはinstall.wim以外には行えません。")
-                }
-                pause
+                Install-WindowsUpdate
                 break
             }
             4 {
-                # レジストリの編集
-                Write-Output ("レジストリの編集をします。")
-                reg load HKEY_USERS\DefaultUser (Join-Path $offlineDirectory "Users\Default\ntuser.dat")
-                regedit.exe
-                Write-Output ("HKEY_LOCAL_MACHINE\Offline を編集してください。")
-                Write-Output ("regeditでの編集が終了したら続行してください。")
-                pause
-                reg unload HKEY_USERS\DefaultUser
-                Write-Output ("レジストリの編集が完了しました。")
-                pause
+                Set-Registry
                 break
             }
             5 {
+                # SMB1の有効化
                 Dism /Image:$offlineDirectory /Enable-Feature /Featurename:"SMB1Protocol" -All
             }
             7 {
