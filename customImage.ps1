@@ -221,7 +221,7 @@ Clear-Host
 # 作業ディレクトリの設定
 ######################################
 # 作業ディレクトリ
-$workDirectory = "D:\DismTemp"
+$workDirectory = Get-Location
 
 $selectWorkDirectoryMsg = @{
     Title   = "作業ディレクトリ"
@@ -237,7 +237,7 @@ if ($selectWorkDirectory -eq $false) {
         $workDirectory = $SetWorkDirectory[1]
     }
     else {
-        $workDirectoryException = [System.Environment]::GetFolderPath("Desktop")
+        $workDirectoryException = Join-Path  ([System.Environment]::GetFolderPath("Desktop")) "DismTemp"
         Write-Output ("作業ディレクトリが選択されていないため " + $workDirectoryException + " を作業ディレクトリにします。")
         $workDirectory = $workDirectoryException
     }
