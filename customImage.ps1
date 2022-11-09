@@ -60,7 +60,7 @@ function Get-MountImageVer {
     $OSSupportFlag = $true
     # WindowsÉoÅ[ÉWÉáÉìîªíË
     switch ($BuildNumber[2]) {
-        { $_ -gt 22000 } {
+        { $_ -ge 22000 } {
             $OSName = "Windows 11"
             break
         }
@@ -68,16 +68,16 @@ function Get-MountImageVer {
             $OSName = "Windows Server 2022"
             break
         }
-        { ($_ -le 19046) -And ($_ -gt 10240) } {
+        { ($_ -le 19046) -And ($_ -ge 10240) } {
             $OSName = "Windows 10"
             break
         }
-        { ($_ -le 9600) -And ($_ -gt 9200) } {
+        { ($_ -le 9600) -And ($_ -ge 9200) } {
             $OSName = "Windows 8"
             $OSSupportFlag = $false
             break
         }
-        { ($_ -le 7601) -And ($_ -gt 7600) } {
+        { ($_ -le 7601) -And ($_ -ge 7600) } {
             $OSName = "Windows 7"
             $OSSupportFlag = $false
             break
