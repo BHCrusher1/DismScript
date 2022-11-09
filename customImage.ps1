@@ -260,11 +260,13 @@ function Mount-Dism {
             5 {
                 # SMB1の有効化
                 Dism /Image:$offlineDirectory /Enable-Feature /Featurename:"SMB1Protocol" -All
+                break
             }
             7 {
                 # 変更を保存
                 Dism /Image:$OfflineDirectory /Cleanup-Image /StartComponentCleanup /ResetBase
                 Dism /Commit-Image /MountDir:$offlineDirectory
+                break
             }
             8 {
                 # 変更を破棄して終了
@@ -390,6 +392,7 @@ while ($escape -eq $false) {
             pause
             # wimマウント後用の関数呼び出し
             Mount-Dism
+            break
         }
         2 {
             ######################################
@@ -419,6 +422,7 @@ while ($escape -eq $false) {
             $index = Read-Host "インデックス番号を入力してください。"
             
             Dism /Export-Image /SourceImageFile:$editTerget /SourceIndex:$index /DestinationImageFile:$DestTarget /Compress:max
+            break
         }
         5 {
             $oscdimg = "C:\Program Files (x86)\Windows Kits\10\Assessment and Deployment Kit\Deployment Tools\amd64\Oscdimg\oscdimg.exe"
@@ -432,6 +436,7 @@ while ($escape -eq $false) {
             # ファイル名に日時追加
             $IsoOptionDateTime = $IsoOption + $NowTime + ".iso -l" + $IsoFileName
             Start-Process $oscdimg -ArgumentList $IsoOptionDateTime
+            break
         }
         9 {
             $escape = $true
