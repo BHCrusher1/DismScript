@@ -56,7 +56,7 @@ function Get-MountImageVer {
             # •ªŠ„
             $TmpVersion = $SelectData.split(".")
         
-            # Å‘å’l•Û‘¶
+            # ƒrƒ‹ƒh”Ô†‚ğ•Û‘¶
             [int]$BuildNumber = $TmpVersion[2]
         }
     }
