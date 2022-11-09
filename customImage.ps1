@@ -39,6 +39,52 @@ function Set-Directory {
     }
 }
 
+# OSバージョンの判定
+function Get-MountImageVer {
+    # wimのバージョン取得
+    $Logs = Dism /Image:$offlineDirectory /Get-Help
+    foreach ( $Log in $Logs ) {
+    
+        # マッチング文字
+        $MatchString = "イメージのバージョン: "
+    
+        # 文字列ヒット
+        if ( $Log -match "(?<Ver>$MatchString *[0-9.]+)") {
+            # ヒットした文字列からマッチング文字を削除
+            $SelectData = $Matches.Ver -replace $MatchString, ""
+        
+            # 分割
+            $TmpVersion = $SelectData.split(".")
+        
+            # 最大値保存
+            [int]$BuildNumber = $TmpVersion[2]
+        }
+    }
+    $BuildNumber = 10240
+    # Windowsバージョン判定
+    switch ($BuildNumber) {
+        { $_ -gt 22000 } {
+            $OSVer = "Windows 11"
+            break
+        }
+        20348 {
+            $OSVer = "Windows Server 2022"
+            break
+        }
+        { $_ -le 19045 } {
+            $OSVer = "Windows 10"
+        }
+        { $_ -lt 10240 } {
+            $OSVer = "Windows 10未満"
+            break
+        }
+        default {
+            $OSVer = "Unknown"
+        }    
+    }
+    return $OSVer
+}
+
 # ドライバのインストール
 function Install-Driver {
     $driverInstallMsg = @{
@@ -144,12 +190,14 @@ function Set-Registry {
 # Dismマウント後
 function Mount-Dism {
     $offlineEscape = $false
+    $ImageBuildNumber = Get-MountImageVer
     while ($offlineEscape -eq $false) {
         Clear-Host
         Write-Output ***********************************************
         Write-Output ("Windows インストールイメージ カスタムスクリプト")
         Write-Output ("オフラインイメージ編集メニュー")
         Write-Output ***********************************************
+        Write-Output ("ImageBuildNumber:  " + $ImageBuildNumber)
         Write-Output ("ドライバ配置先:      " + $driverDirectory)
         Write-Output ("更新プログラム配置先: " + $updateDirectory)
         Write-Output ("")
