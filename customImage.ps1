@@ -100,8 +100,23 @@ function Install-Driver {
     }
     $driverInstall = Get-YesNoDialog $driverInstallMsg
     if ($driverInstall -eq $true) {
-        Write-Output ("ドライバのインストールをします。")
-        Dism /Image:$offlineDirectory /Add-Driver /Driver:$driverDirectory /recurse
+        Write-Output ("OS共通のドライバのインストールをします。")
+        $driverCommonDirectory = Join-Path $driverDirectory "Common"
+        Dism /Image:$offlineDirectory /Add-Driver /Driver:$driverCommonDirectory /recurse
+
+        if ($ImageVer[2] -ne $false) {
+            if ($ImageVer[0] -eq "Windows 11") {
+                $driverOSDirectory = Join-Path $driverDirectory "Win11"
+            }
+            elseif ($ImageVer[0] -eq "Windows Server 2022") {
+                $driverOSDirectory = Join-Path $driverDirectory "WS2022"
+            }
+            elseif ($ImageVer[0] -eq "Windows 10") {
+                $driverOSDirectory = Join-Path $driverDirectory "Win10"
+            }
+            Write-Output ($ImageVer[0] + "用のドライバをインストールします。")
+            Dism /Image:$offlineDirectory /Add-Driver /Driver:$driverOSDirectory /recurse
+        }
         Write-Output ("ドライバのインストールが完了しました。")
     }
     else {
@@ -113,34 +128,33 @@ function Install-Driver {
 function Remove-UWP {
     # プロビジョニングされたUWPアプリの削除
     if ($editTerget -eq $installWim) {
-        $deleteUwpAppsMsg = @{
-            Title   = "プロビジョニングされたUWPアプリの削除"
-            Message = "プロビジョニングされたUWPアプリを削除してよろしいですか？"
-            YesMsg  = "プロビジョニングされたUWPアプリの削除をします。"
-            NoMsg   = "プロビジョニングされたUWPアプリの削除を中止します。"
-        }
-        $deleteUwpApps = Get-YesNoDialog $deleteUwpAppsMsg
-        if ($deleteUwpApps -eq $true) {
-            $isWindows11Msg = @{
-                Title   = "OSの確認"
-                Message = "このイメージはWindows 11 22H2ですか？"
-                YesMsg  = "はい。このイメージはWindows 11 22H2です。"
-                NoMsg   = "いいえ。このイメージはWindows 10 21H2です。"
+        if ($ImageVer[1] -ge 19041) {
+            $deleteUwpAppsMsg = @{
+                Title   = "プロビジョニングされたUWPアプリの削除"
+                Message = "プロビジョニングされたUWPアプリを削除してよろしいですか？"
+                YesMsg  = "プロビジョニングされたUWPアプリの削除をします。"
+                NoMsg   = "プロビジョニングされたUWPアプリの削除を中止します。"
             }
-            $isWindows11 = Get-YesNoDialog $isWindows11Msg
-            if ($isWindows11 -eq $true) {
-                Write-Output ("Windows 11 22H2のプロビジョニングされたUWPアプリの削除をします。")
-                .\Get-ProvisionedAppxPackages_Win10_22H2.ps1
+            $deleteUwpApps = Get-YesNoDialog $deleteUwpAppsMsg
+            if ($deleteUwpApps -eq $true) {
+                if ($ImageVer[1] -eq 22621) {
+                    Write-Output ("Windows 11 22H2のプロビジョニングされたUWPアプリの削除をします。")
+                }
+                elseif ($ImageVer[1] -eq 22000) {
+                    Write-Output ("Windows 11 21H2のプロビジョニングされたUWPアプリの削除をします。")
+                }
+                elseif (($ImageVer[1] -le 19046) -And ($ImageVer[1] -ge 19041)) {
+                    Write-Output ("Windows 10 2004-22H2のプロビジョニングされたUWPアプリの削除をします。")
+                }
             }
             else {
-                Write-Output ("Windows 10 2004-22H2のプロビジョニングされたUWPアプリの削除をします。")
-                .\Get-ProvisionedAppxPackages_Win11_22H2.ps1
+                Write-Output ("プロビジョニングされたUWPアプリの削除を中止しました。")
             }
-            Write-Output ("プロビジョニングされたUWPアプリの削除が完了しました。")
         }
         else {
-            Write-Output ("プロビジョニングされたUWPアプリの削除を中止しました。")
+            Write-Output ("プロビジョニングされたUWPアプリの削除は、Windows 10 2004-22H2、Windows 11以外はできません。")
         }
+    
     }
     else {
         Write-Output ("プロビジョニングされたUWPアプリの削除はinstall.wim以外には行えません。")
@@ -150,7 +164,7 @@ function Remove-UWP {
 
 function Install-WindowsUpdate {
     # 更新プログラムのインストール
-    if ($editTerget -eq $installWim) {
+    if ($ImageVer[2] -ne $false) {
         $updateProgramMsg = @{
             Title   = "更新プログラム"
             Message = "更新プログラムをインストールしてよろしいですか？"
@@ -160,13 +174,17 @@ function Install-WindowsUpdate {
         $updateProgram = Get-YesNoDialog $updateProgramMsg
         if ($updateProgram -eq $true) {
             Write-Output ("更新プログラムのインストールをします。")
-            # 適用する KB 取得
-            [array]$kbs = Get-ChildItem $updateDirectory\*.msu -Recurse
-            # KB 適用
-            foreach ( $kb in $kbs ) {
-                $kbFullName = $kb.FullName
-                Dism /Image:$offlineDirectory /Add-Package /PackagePath:$kbFullName
+            if ($ImageVer[0] -eq "Windows 11") {
+                $updateOSDirectory = Join-Path $updateDirectory "Win11"
             }
+            elseif ($ImageVer[0] -eq "Windows Server 2022") {
+                $updateOSDirectory = Join-Path $updateDirectory "WS2022"
+            }
+            elseif ($ImageVer[0] -eq "Windows 10") {
+                $updateOSDirectory = Join-Path $updateDirectory "Win10"
+            }
+            # KB 適用
+            Dism /Image:$offlineDirectory /Add-Package /PackagePath:$updateOSDirectory
             Write-Output ("更新プログラムのインストールが完了しました。")
         }
         else {
@@ -174,7 +192,7 @@ function Install-WindowsUpdate {
         }
     }
     else {
-        Write-Output ("更新プログラムのインストールはinstall.wim以外には行えません。")
+        Write-Output ("更新プログラムのインストールはWindows 10以上でないと行えません。")
     }
     pause
 }
