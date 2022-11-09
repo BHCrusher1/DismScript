@@ -87,7 +87,11 @@ function Get-MountImageVer {
             $OSSupportFlag = $false
         }    
     }
-    return $OSName, $BuildNumber[2], $OSSupportFlag
+    return @{
+        Name        = $OSName
+        Build       = $BuildNumber[2]
+        SupportFlag = $OSSupportFlag
+    }
 }
 
 # ドライバのインストール
@@ -104,17 +108,17 @@ function Install-Driver {
         $driverCommonDirectory = Join-Path $driverDirectory "Common"
         Dism /Image:$offlineDirectory /Add-Driver /Driver:$driverCommonDirectory /recurse
 
-        if ($ImageVer[2] -ne $false) {
-            if ($ImageVer[0] -eq "Windows 11") {
+        if ($OSInfo.SupportFlag -ne $false) {
+            if ($OSInfo.Name -eq "Windows 11") {
                 $driverOSDirectory = Join-Path $driverDirectory "Win11"
             }
-            elseif ($ImageVer[0] -eq "Windows Server 2022") {
+            elseif ($OSInfo.Name -eq "Windows Server 2022") {
                 $driverOSDirectory = Join-Path $driverDirectory "WS2022"
             }
-            elseif ($ImageVer[0] -eq "Windows 10") {
+            elseif ($OSInfo.Name -eq "Windows 10") {
                 $driverOSDirectory = Join-Path $driverDirectory "Win10"
             }
-            Write-Output ($ImageVer[0] + "用のドライバをインストールします。")
+            Write-Output ($OSInfo.Name + "用のドライバをインストールします。")
             Dism /Image:$offlineDirectory /Add-Driver /Driver:$driverOSDirectory /recurse
         }
         Write-Output ("ドライバのインストールが完了しました。")
@@ -128,7 +132,7 @@ function Install-Driver {
 function Remove-UWP {
     # プロビジョニングされたUWPアプリの削除
     if ($editTerget -eq $installWim) {
-        if ($ImageVer[1] -ge 19041) {
+        if ($OSInfo.Build -ge 19041) {
             $deleteUwpAppsMsg = @{
                 Title   = "プロビジョニングされたUWPアプリの削除"
                 Message = "プロビジョニングされたUWPアプリを削除してよろしいですか？"
@@ -137,13 +141,13 @@ function Remove-UWP {
             }
             $deleteUwpApps = Get-YesNoDialog $deleteUwpAppsMsg
             if ($deleteUwpApps -eq $true) {
-                if ($ImageVer[1] -eq 22621) {
+                if ($OSInfo.Build -eq 22621) {
                     Write-Output ("Windows 11 22H2のプロビジョニングされたUWPアプリの削除をします。")
                 }
-                elseif ($ImageVer[1] -eq 22000) {
+                elseif ($OSInfo.Build -eq 22000) {
                     Write-Output ("Windows 11 21H2のプロビジョニングされたUWPアプリの削除をします。")
                 }
-                elseif (($ImageVer[1] -le 19046) -And ($ImageVer[1] -ge 19041)) {
+                elseif (($OSInfo.Build -le 19046) -And ($OSInfo.Build -ge 19041)) {
                     Write-Output ("Windows 10 2004-22H2のプロビジョニングされたUWPアプリの削除をします。")
                 }
             }
@@ -164,7 +168,7 @@ function Remove-UWP {
 
 function Install-WindowsUpdate {
     # 更新プログラムのインストール
-    if ($ImageVer[2] -ne $false) {
+    if ($OSInfo.SupportFlag -ne $false) {
         $updateProgramMsg = @{
             Title   = "更新プログラム"
             Message = "更新プログラムをインストールしてよろしいですか？"
@@ -174,13 +178,13 @@ function Install-WindowsUpdate {
         $updateProgram = Get-YesNoDialog $updateProgramMsg
         if ($updateProgram -eq $true) {
             Write-Output ("更新プログラムのインストールをします。")
-            if ($ImageVer[0] -eq "Windows 11") {
+            if ($OSInfo.Name -eq "Windows 11") {
                 $updateOSDirectory = Join-Path $updateDirectory "Win11"
             }
-            elseif ($ImageVer[0] -eq "Windows Server 2022") {
+            elseif ($OSInfo.Name -eq "Windows Server 2022") {
                 $updateOSDirectory = Join-Path $updateDirectory "WS2022"
             }
-            elseif ($ImageVer[0] -eq "Windows 10") {
+            elseif ($OSInfo.Name -eq "Windows 10") {
                 $updateOSDirectory = Join-Path $updateDirectory "Win10"
             }
             # KB 適用
@@ -213,14 +217,14 @@ function Set-Registry {
 # Dismマウント後
 function Mount-Dism {
     $offlineEscape = $false
-    $ImageVer = Get-MountImageVer
+    $OSInfo = Get-MountImageVer
     while ($offlineEscape -eq $false) {
         Clear-Host
         Write-Output ***********************************************
         Write-Output ("Windows インストールイメージ カスタムスクリプト")
         Write-Output ("オフラインイメージ編集メニュー")
         Write-Output ***********************************************
-        Write-Output ($ImageVer[0] + " Build " + $ImageVer[1])
+        Write-Output ($OSInfo.Name + " Build " + $OSInfo.Build)
         Write-Output ("ドライバ配置先:      " + $driverDirectory)
         Write-Output ("更新プログラム配置先: " + $updateDirectory)
         Write-Output ("")
