@@ -54,35 +54,40 @@ function Get-MountImageVer {
             $SelectData = $Matches.Ver -replace $MatchString, ""
         
             # 分割
-            $TmpVersion = $SelectData.split(".")
-        
-            # ビルド番号を保存
-            [int]$BuildNumber = $TmpVersion[2]
+            $BuildNumber = $SelectData.split(".")
         }
     }
-    $BuildNumber = 10240
+    $OSSupportFlag = $true
     # Windowsバージョン判定
-    switch ($BuildNumber) {
+    switch ($BuildNumber[2]) {
         { $_ -gt 22000 } {
-            $OSVer = "Windows 11"
+            $OSName = "Windows 11"
             break
         }
         20348 {
-            $OSVer = "Windows Server 2022"
+            $OSName = "Windows Server 2022"
             break
         }
-        { $_ -le 19045 } {
-            $OSVer = "Windows 10"
+        { ($_ -le 19046) -And ($_ -gt 10240) } {
+            $OSName = "Windows 10"
+            break
         }
-        { $_ -lt 10240 } {
-            $OSVer = "Windows 10未満"
+        { ($_ -le 9600) -And ($_ -gt 9200) } {
+            $OSName = "Windows 8"
+            $OSSupportFlag = $false
+            break
+        }
+        { ($_ -le 7601) -And ($_ -gt 7600) } {
+            $OSName = "Windows 7"
+            $OSSupportFlag = $false
             break
         }
         default {
-            $OSVer = "Unknown"
+            $OSName = "UnknownOS"
+            $OSSupportFlag = $false
         }    
     }
-    return $OSVer
+    return $OSName, $BuildNumber[2], $OSSupportFlag
 }
 
 # ドライバのインストール
@@ -190,14 +195,14 @@ function Set-Registry {
 # Dismマウント後
 function Mount-Dism {
     $offlineEscape = $false
-    $ImageBuildNumber = Get-MountImageVer
+    $ImageVer = Get-MountImageVer
     while ($offlineEscape -eq $false) {
         Clear-Host
         Write-Output ***********************************************
         Write-Output ("Windows インストールイメージ カスタムスクリプト")
         Write-Output ("オフラインイメージ編集メニュー")
         Write-Output ***********************************************
-        Write-Output ("ImageBuildNumber:  " + $ImageBuildNumber)
+        Write-Output ($ImageVer[0] + " Build " + $ImageVer[1])
         Write-Output ("ドライバ配置先:      " + $driverDirectory)
         Write-Output ("更新プログラム配置先: " + $updateDirectory)
         Write-Output ("")
