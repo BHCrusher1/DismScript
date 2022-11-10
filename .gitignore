@@ -1,0 +1,11 @@
+Driver/
+ISO/
+KB/
+Offline/
+WindowsPE/
+開発用メモ/
+*.iso
+*.wim
+*.esd
+*.ffu
+*.xml
