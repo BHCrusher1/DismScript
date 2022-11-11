@@ -90,6 +90,7 @@ function Get-MountImageVer {
     return @{
         Name        = $OSName
         Build       = $BuildNumber[2]
+        Update      = $BuildNumber[3]
         SupportFlag = $OSSupportFlag
     }
 }
@@ -217,14 +218,14 @@ function Set-Registry {
 # Dismマウント後
 function Mount-Dism {
     $offlineEscape = $false
-    $OSInfo = Get-MountImageVer
     while ($offlineEscape -eq $false) {
+        $OSInfo = Get-MountImageVer
         Clear-Host
         Write-Output ***********************************************
         Write-Output ("Windows インストールイメージ カスタムスクリプト")
         Write-Output ("オフラインイメージ編集メニュー")
         Write-Output ***********************************************
-        Write-Output ($OSInfo.Name + " Build " + $OSInfo.Build)
+        Write-Output ($OSInfo.Name + " Build " + $OSInfo.Build + "." + $OSInfo.Update)
         Write-Output ("ドライバ配置先:      " + $driverDirectory)
         Write-Output ("更新プログラム配置先: " + $updateDirectory)
         Write-Output ("")
