@@ -42,7 +42,7 @@ function Set-Directory {
 # OSバージョンの判定
 function Get-MountImageVer {
     # wimのバージョン取得
-    $Logs = Dism /Image:$offlineDirectory /Get-Help
+    $Logs = Dism /Image:$offlineDir /Get-Help
     foreach ( $Log in $Logs ) {
     
         # マッチング文字
@@ -106,21 +106,21 @@ function Install-Driver {
     $driverInstall = Get-YesNoDialog $driverInstallMsg
     if ($driverInstall -eq $true) {
         Write-Output ("OS共通のドライバのインストールをします。")
-        $driverCommonDirectory = Join-Path $driverDirectory "Common"
-        Dism /Image:$offlineDirectory /Add-Driver /Driver:$driverCommonDirectory /recurse
+        $driverCommonDir = Join-Path $driverDir "Common"
+        Dism /Image:$offlineDir /Add-Driver /Driver:$driverCommonDir /recurse
 
         if ($OSInfo.SupportFlag -ne $false) {
             if ($OSInfo.Name -eq "Windows 11") {
-                $driverOSDirectory = Join-Path $driverDirectory "Win11"
+                $driverOSDir = Join-Path $driverDir "Win11"
             }
             elseif ($OSInfo.Name -eq "Windows Server 2022") {
-                $driverOSDirectory = Join-Path $driverDirectory "WS2022"
+                $driverOSDir = Join-Path $driverDir "WS2022"
             }
             elseif ($OSInfo.Name -eq "Windows 10") {
-                $driverOSDirectory = Join-Path $driverDirectory "Win10"
+                $driverOSDir = Join-Path $driverDir "Win10"
             }
             Write-Output ($OSInfo.Name + "用のドライバをインストールします。")
-            Dism /Image:$offlineDirectory /Add-Driver /Driver:$driverOSDirectory /recurse
+            Dism /Image:$offlineDir /Add-Driver /Driver:$driverOSDir /recurse
         }
         Write-Output ("ドライバのインストールが完了しました。")
     }
@@ -180,16 +180,16 @@ function Install-WindowsUpdate {
         if ($updateProgram -eq $true) {
             Write-Output ("更新プログラムのインストールをします。")
             if ($OSInfo.Name -eq "Windows 11") {
-                $updateOSDirectory = Join-Path $updateDirectory "Win11"
+                $updateOSDir = Join-Path $updateDir "Win11"
             }
             elseif ($OSInfo.Name -eq "Windows Server 2022") {
-                $updateOSDirectory = Join-Path $updateDirectory "WS2022"
+                $updateOSDir = Join-Path $updateDir "WS2022"
             }
             elseif ($OSInfo.Name -eq "Windows 10") {
-                $updateOSDirectory = Join-Path $updateDirectory "Win10"
+                $updateOSDir = Join-Path $updateDir "Win10"
             }
             # KB 適用
-            Dism /Image:$offlineDirectory /Add-Package /PackagePath:$updateOSDirectory
+            Dism /Image:$offlineDir /Add-Package /PackagePath:$updateOSDir
             Write-Output ("更新プログラムのインストールが完了しました。")
         }
         else {
@@ -205,7 +205,7 @@ function Install-WindowsUpdate {
 function Set-Registry {
     # レジストリの編集
     Write-Output ("レジストリの編集をします。")
-    reg load HKEY_USERS\DefaultUser (Join-Path $offlineDirectory "Users\Default\ntuser.dat")
+    reg load HKEY_USERS\DefaultUser (Join-Path $offlineDir "Users\Default\ntuser.dat")
     regedit.exe
     Write-Output ("HKEY_LOCAL_MACHINE\Offline を編集してください。")
     Write-Output ("regeditでの編集が終了したら続行してください。")
@@ -226,8 +226,8 @@ function Mount-Dism {
         Write-Output ("オフラインイメージ編集メニュー")
         Write-Output ***********************************************
         Write-Output ($OSInfo.Name + " Build " + $OSInfo.Build + "." + $OSInfo.Update)
-        Write-Output ("ドライバ配置先:      " + $driverDirectory)
-        Write-Output ("更新プログラム配置先: " + $updateDirectory)
+        Write-Output ("ドライバ配置先:      " + $driverDir)
+        Write-Output ("更新プログラム配置先: " + $updateDir)
         Write-Output ("")
         Write-Output ("1: inf形式のドライバのインストール")
         Write-Output ("2: プロビジョニングされたUWPアプリの削除")
@@ -260,26 +260,26 @@ function Mount-Dism {
             }
             5 {
                 # SMB1の有効化
-                Dism /Image:$offlineDirectory /Enable-Feature /Featurename:"SMB1Protocol" -All
+                Dism /Image:$offlineDir /Enable-Feature /Featurename:"SMB1Protocol" -All
                 break
             }
             7 {
                 # 変更を保存
-                Dism /Image:$OfflineDirectory /Cleanup-Image /StartComponentCleanup /ResetBase
-                Dism /Commit-Image /MountDir:$offlineDirectory
+                Dism /Image:$OfflineDir /Cleanup-Image /StartComponentCleanup /ResetBase
+                Dism /Commit-Image /MountDir:$offlineDir
                 break
             }
             8 {
                 # 変更を破棄して終了
-                Dism /Unmount-WIM /MountDir:$offlineDirectory /Discard
+                Dism /Unmount-WIM /MountDir:$offlineDir /Discard
                 $offlineEscape = $true
                 pause
                 break
             }
             9 {
                 # 変更を保存して終了
-                Dism /Image:$OfflineDirectory /Cleanup-Image /StartComponentCleanup /ResetBase
-                Dism /Unmount-WIM /MountDir:$offlineDirectory /Commit
+                Dism /Image:$OfflineDir /Cleanup-Image /StartComponentCleanup /ResetBase
+                Dism /Unmount-WIM /MountDir:$offlineDir /Commit
                 $offlineEscape = $true
                 pause
                 break
@@ -299,31 +299,31 @@ Clear-Host
 # 作業ディレクトリの設定
 ######################################
 # 作業ディレクトリ
-$workDirectory = Get-Location
+$workDir = Get-Location
 
-$selectWorkDirectoryMsg = @{
+$selectWorkDirMsg = @{
     Title   = "作業ディレクトリ"
-    Message = ("作業ディレクトリの場所は " + $workDirectory + " でよろしいですか？")
-    YesMsg  = ("作業ディレクトリの場所 " + $workDirectory + " で続行します。")
+    Message = ("作業ディレクトリの場所は " + $workDir + " でよろしいですか？")
+    YesMsg  = ("作業ディレクトリの場所 " + $workDir + " で続行します。")
     NoMsg   = "作業ディレクトリの場所を変更します。"
 }
 
-$selectWorkDirectory = Get-YesNoDialog $selectWorkDirectoryMsg
-if ($selectWorkDirectory -eq $false) {
-    $SetWorkDirectory = Set-Directory "作業ディレクトリを選択してください"
-    if ($SetWorkDirectory[0] -eq $true) {
-        $workDirectory = $SetWorkDirectory[1]
+$selectWorkDir = Get-YesNoDialog $selectWorkDirMsg
+if ($selectWorkDir -eq $false) {
+    $SetWorkDir = Set-Directory "作業ディレクトリを選択してください"
+    if ($SetWorkDir[0] -eq $true) {
+        $workDir = $SetWorkDir[1]
     }
     else {
-        $workDirectoryException = Join-Path  ([System.Environment]::GetFolderPath("Desktop")) "DismTemp"
-        Write-Output ("作業ディレクトリが選択されていないため " + $workDirectoryException + " を作業ディレクトリにします。")
-        $workDirectory = $workDirectoryException
+        $workDirException = Join-Path  ([System.Environment]::GetFolderPath("Desktop")) "DismTemp"
+        Write-Output ("作業ディレクトリが選択されていないため " + $workDirException + " を作業ディレクトリにします。")
+        $workDir = $workDirException
     }
 }
-Write-Output ("作業ディレクトリを " + $workDirectory + " に設定しました。")
+Write-Output ("作業ディレクトリを " + $workDir + " に設定しました。")
 
 # ブート モジュールをセットした先
-$windowsPERoot = Join-Path $workDirectory "WindowsPE"
+$windowsPERoot = Join-Path $workDir "WindowsPE"
 
 ######################################
 # 必要変数(編集不要)
@@ -333,23 +333,23 @@ $biosBoot = Join-Path $windowsPERoot "fwfiles\etfsboot.com"
 $uefiBoot = Join-Path $windowsPERoot "fwfiles\efisys.bin"
 
 # ワークディレクトリ
-$isoDirectory = Join-Path $workDirectory "ISO"
-$global:offlineDirectory = Join-Path $workDirectory "Offline"
-$driverDirectory = Join-Path $workDirectory "Driver"
-$updateDirectory = Join-Path $workDirectory "KB"
-$bootWim = Join-Path $isoDirectory "sources\boot.wim"
-$installWim = Join-Path $isoDirectory "sources\install.wim"
+$isoDir = Join-Path $workDir "ISO"
+$global:offlineDir = Join-Path $workDir "Offline"
+$driverDir = Join-Path $workDir "Driver"
+$updateDir = Join-Path $workDir "KB"
+$bootWim = Join-Path $isoDir "sources\boot.wim"
+$installWim = Join-Path $isoDir "sources\install.wim"
 
 $editTerget = $installWim
 
 ######################################
 # ディレクトリ作成
 ######################################
-if ( -not (Test-Path $driverDirectory)) { mkdir $driverDirectory }
-if ( -not (Test-Path $isoDirectory)) { mkdir $isoDirectory }
-if ( -not (Test-Path $updateDirectory)) { mkdir $updateDirectory }
+if ( -not (Test-Path $driverDir)) { mkdir $driverDir }
+if ( -not (Test-Path $isoDir)) { mkdir $isoDir }
+if ( -not (Test-Path $updateDir)) { mkdir $updateDir }
 
-Write-Output ($isoDirectory + " フォルダに、isoファイルの中身を展開してください。")
+Write-Output ($isoDir + " フォルダに、isoファイルの中身を展開してください。")
 pause
 
 $escape = $false
@@ -359,9 +359,9 @@ while ($escape -eq $false) {
     Write-Output ("Windows インストールイメージ カスタムスクリプト")
     Write-Output ("トップメニュー")
     Write-Output ***********************************************
-    Write-Output ("作業ディレクトリ:     " + $workDirectory)
+    Write-Output ("作業ディレクトリ:     " + $workDir)
     Write-Output ("WindowsPE:            " + $windowsPERoot)
-    Write-Output ("ISOファイル展開先:    " + $isoDirectory)
+    Write-Output ("ISOファイル展開先:    " + $isoDir)
     Write-Output ("")
     Write-Output ("現在の編集対象は " + $editTerget + " です。")
     Write-Output ("")
@@ -385,10 +385,10 @@ while ($escape -eq $false) {
             Write-Output ("wimファイルをマウントします。")
 
             # オフライン操作用ディレクトリ作成
-            if ( -not (Test-Path $offlineDirectory)) { mkdir $offlineDirectory }
+            if ( -not (Test-Path $offlineDir)) { mkdir $offlineDir }
 
             # wim マウント
-            Dism /Mount-Image /ImageFile:$editTerget /Index:$index /MountDir:$offlineDirectory
+            Dism /Mount-Image /ImageFile:$editTerget /Index:$index /MountDir:$offlineDir
 
             pause
             # wimマウント後用の関数呼び出し
@@ -411,10 +411,10 @@ while ($escape -eq $false) {
         3 {
             # 編集する .wim 指定
             if ($editTerget -eq $installWim) {
-                $DestTarget = Join-Path $WorkDirectory "install.wim"
+                $DestTarget = Join-Path $WorkDir "install.wim"
             }
             else {
-                $DestTarget = Join-Path $WorkDirectory "boot.wim"
+                $DestTarget = Join-Path $WorkDir "boot.wim"
             }
 
             # インデックスの確認
@@ -428,11 +428,11 @@ while ($escape -eq $false) {
         5 {
             $oscdimg = "C:\Program Files (x86)\Windows Kits\10\Assessment and Deployment Kit\Deployment Tools\amd64\Oscdimg\oscdimg.exe"
             $IsoFileName = "Win10_22H2_Japanese_x64"
-            $OutputIsoFile = Join-Path $WorkDirectory $IsoFileName
+            $OutputIsoFile = Join-Path $WorkDir $IsoFileName
             $NowTime = Get-Date -Format "_yyMMdd-HHmm"
 
             # ISO 作成オプション
-            $IsoOption = " -m -o -u2 -bootdata:2#p0,e,b" + $BiosBoot + "#pEF,e,b" + $UefiBoot + " " + $IsoDirectory + " " + $OutputIsoFile
+            $IsoOption = " -m -o -u2 -bootdata:2#p0,e,b" + $BiosBoot + "#pEF,e,b" + $UefiBoot + " " + $IsoDir + " " + $OutputIsoFile
 
             # ファイル名に日時追加
             $IsoOptionDateTime = $IsoOption + $NowTime + ".iso -l" + $IsoFileName
