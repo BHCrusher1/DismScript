@@ -1,0 +1,50 @@
+# RemoveAppsList
+# 1行に1アプリを記載
+# "#"以降は無視される
+# 削除したくないアプリ行の先頭に"#"をつける
+
+Clipchamp.Clipchamp  # Clipchamp
+# Microsoft.ApplicationCompatibilityEnhancements  # Windows アプリケーションの互換性拡張
+# Microsoft.AV1VideoExtension  # AV1 ビデオ拡張機能
+# Microsoft.AVCEncoderVideoExtension  # AVC Encoder Video Extension
+Microsoft.BingNews  # Microsoft ニュース
+Microsoft.BingSearch  # Microsoft Bing
+Microsoft.BingWeather  # MSN 天気
+Microsoft.GamingApp  # Xbox
+Microsoft.GetHelp  # 問い合わせ
+# Microsoft.HEIFImageExtension  # HEIF 画像表示オプション
+# Microsoft.HEVCVideoExtension  # デバイス製造元からの HEVC ビデオ拡張機能
+# Microsoft.MicrosoftOfficeHub  # Microsoft 365 Copilot
+Microsoft.MicrosoftSolitaireCollection  # Microsoft Solitaire Collection
+# Microsoft.MicrosoftStickyNotes  # Microsoft Sticky Notes
+# Microsoft.MPEG2VideoExtension  # MPEG-2 ビデオ拡張機能
+Microsoft.OutlookForWindows  # Outlook for Windows
+# Microsoft.Paint  # Paint
+# Microsoft.PowerAutomateDesktop  # Power Automate
+# Microsoft.RawImageExtension  # Raw 画像拡張機能
+# Microsoft.ScreenSketch  # 切り取り領域とスケッチ
+# Microsoft.StorePurchaseApp  # Microsoft Store エクスペリエンス ホスト
+# Microsoft.Todos  # Microsoft To Do
+# Microsoft.VP9VideoExtensions  # VP9 ビデオ拡張機能
+# Microsoft.WebMediaExtensions  # Web メディア拡張機能
+# Microsoft.WebpImageExtension  # WedP 画像表示オプション
+# Microsoft.Windows.DevHome  # Windows 高度な設定(旧DevHome)
+# Microsoft.Windows.Photos  # Microsoft フォト
+# Microsoft.WindowsAlarms  # Windows アラーム & クロック
+# Microsoft.WindowsCalculator  # Windows 電卓
+# Microsoft.WindowsCamera  # Windows カメラ
+Microsoft.WindowsFeedbackHub  # フィードバック Hub
+# Microsoft.WindowsNotepad  # Windows Notepad
+# Microsoft.WindowsSoundRecorder  # Windows ボイス レコーダー
+# Microsoft.WindowsStore  # Microsoft Store
+# Microsoft.WindowsTerminal  # Windows Terminal
+Microsoft.Xbox.TCUI  # Xbox TCUI
+# Microsoft.XboxGamingOverlay  # Game Bar
+Microsoft.XboxIdentityProvider  # Xbox Identity Provider
+Microsoft.XboxSpeechToTextOverlay  # Xbox Game Speech Window
+Microsoft.YourPhone  # Phone Link
+# Microsoft.ZuneMusic  # Windows メディア プレーヤー
+MicrosoftCorporationII.QuickAssist  # クイック アシスト
+# MicrosoftWindows.Client.WebExperience  # Windows Web Experience Pack
+MicrosoftWindows.CrossDevice  # Cross Device Experience Host
+MSTeams  # Microsoft Teams
