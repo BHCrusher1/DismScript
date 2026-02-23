@@ -30,9 +30,13 @@
     AppxProvisionedPackage_Removing = Removing AppxProvisionedPackage: {0}
     AppxProvisionedPackage_Optimize = Optimizing packages...
     InboxDriver_Remove = Removing Inbox drivers
+    Driver_Add = Adding drivers
+    Driver_Adding = Adding drivers from {0}...
+    Driver_SwitchMissing = Either -Install or -Boot switch must be specified.
     MountWindowsDir_DontOpen = Unmounting. Do not open {0}.
     ImageProcessing_Error = An error occurred during image processing: {0}
     ISOFile_Create = Creating an ISO file
     ISOFile_VolumeLabel = Enter the ISO Volume Label
     ISOFile_FileName = Enter the ISO File Name
+    OSCDImg_NotFound = oscdimg.exe not found at {0}. Aborting ISO creation.
 '@

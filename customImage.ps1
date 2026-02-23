@@ -82,7 +82,7 @@ function Confirm-Overwrite {
         Title   = $LangData.Overwrite_Title
         Message = $LangData.Overwrite_Message -f $FilePath
         YesMsg  = $LangData.Overwrite_YesMsg -f $FilePath
-        NoMsg   = $LangData.Overwrite_NoMsg
+        NoMsg   = $LangData.Overwrite_NoMsg -f $FilePath
     }
 
     # 上書きするか？
@@ -117,6 +117,111 @@ function Dismount-WindowsImageDiscard {
         Clear-WindowsCorruptMountPoint
     }
 }
+
+# ドライバ追加関数
+<#
+.SYNOPSIS
+指定されたディレクトリのドライバをオフラインイメージに追加します。
+#>
+function Add-WindowsDriverToImage {
+    param (
+        [switch]$Install,
+        [switch]$Boot
+    )
+
+    if (-not $Install -and -not $Boot) {
+        Write-Warning $LangData.Driver_SwitchMissing
+        return
+    }
+
+    $targets = @($driverCommonDir)
+
+    if ($Install) {
+        $targets += $driverInstallDir
+    }
+
+    if ($Boot) {
+        $targets += $driverBootDir
+    }
+
+    # ドライバ追加確認メッセージ
+    $actionName = $LangData.Driver_Add
+    $addDriverMsg = @{
+        Title   = $actionName
+        Message = $LangData.Confirm_Message -f $actionName
+        YesMsg  = $LangData.Confirm_YesMsg -f $actionName
+        NoMsg   = $LangData.Confirm_NoMsg -f $actionName
+    }
+
+    # ドライバを追加するか？
+    [Boolean]$addDriver = Show-YesNoDialog $addDriverMsg
+
+    # Yesの場合、ドライバの追加
+    if ($addDriver) {
+        foreach ($driverPath in $targets) {
+            Write-Host ($LangData.Driver_Adding -f $driverPath)
+            Add-WindowsDriver -Path $offlineDir -Driver $driverPath -Recurse -ForceUnsigned -ErrorAction SilentlyContinue | Out-Null
+        }
+    }
+}
+
+# ISO作成関数
+<#
+.SYNOPSIS
+ISOファイルを作成します。
+#>
+function New-IsoFile {
+    [CmdletBinding()]
+    param ()
+
+    # ISOファイルの作成確認メッセージ
+    $actionName = $LangData.ISOFile_Create
+    $createIsoMsg = @{
+        Title   = $actionName
+        Message = $LangData.Confirm_Message -f $actionName
+        YesMsg  = $LangData.Confirm_YesMsg -f $actionName
+        NoMsg   = $LangData.Confirm_NoMsg -f $actionName
+    }
+
+    # ISOファイルを作成するか？
+    [Boolean]$createIso = Show-YesNoDialog $createIsoMsg
+
+    # Yesの場合、ISOファイルの作成
+    if ( $createIso -eq $true ) {
+        # ISO出力ディレクトリの作成
+        $isoDir = Join-Path $workDir "ISO"
+        if ( -not ( Test-Path $isoDir )) { New-Item -ItemType Directory $isoDir }
+
+        [String]$Oscdimg = Join-Path $workDir "Bin\oscdimg.exe"
+
+        # oscdimg.exeの検証
+        if ( -not ( Test-Path $Oscdimg )) {
+            Write-Error ( $LangData.OSCDImg_NotFound -f $Oscdimg )
+            return
+        }
+
+        [String]$BIOSBoot = Join-Path $dvdDir "boot\etfsboot.com"
+        [String]$UEFIBoot = Join-Path $dvdDir "efi\microsoft\boot\efisys.bin"
+        [String]$ISOLabel = Read-Host $LangData.ISOFile_VolumeLabel
+        [String]$ISOFileName = Read-Host $LangData.ISOFile_FileName
+        $ISOFileName = Join-Path $isoDir "${ISOFileName}.iso"
+
+        # 既にISOファイルが存在する場合、上書き確認
+        if ( Test-Path $ISOFileName ) {
+            if ( -not ( Confirm-Overwrite $ISOFileName ) ) {
+                Write-Host ( $LangData.Overwrite_NoMsg -f $ISOFileName )
+                return
+            }
+        }
+
+        if ( $null -eq $ISOLabel ) {
+            Start-Process -FilePath $Oscdimg -ArgumentList "-bootdata:2#p0,e,b${BIOSBoot}#pEF,e,b${UEFIBoot} -o -h -m -u2 -udfver102 ${dvdDir} ${ISOFileName}" -Wait
+        } else {
+            Start-Process -FilePath $Oscdimg -ArgumentList "-bootdata:2#p0,e,b${BIOSBoot}#pEF,e,b${UEFIBoot} -o -h -m -u2 -udfver102 -l${ISOLabel} ${dvdDir} ${ISOFileName}" -Wait
+        }
+    }
+}
+
 
 ######################################
 # スクリプト本体
@@ -200,7 +305,7 @@ $windowsImageInfo = Get-WindowsImage -ImagePath $installWim -Index $index
 # Windowsイメージのマウント確認メッセージ
 $actionName = $LangData.InstallWim_Mount -f $windowsImageInfo.ImageName
 $mountWindowsImageMsg = @{
-    Title   = $LangData.InstallWim_Mount -f "" # Title doesn't need the image name
+    Title   = $LangData.InstallWim_Mount -f $windowsImageInfo.ImageName
     Message = $LangData.Confirm_Message -f $actionName
     YesMsg  = $LangData.Confirm_YesMsg -f $actionName
     NoMsg   = $LangData.Confirm_NoMsg -f $actionName
@@ -252,7 +357,7 @@ if ( $mountWindowsImage -eq $true ) {
             }
             # プロビジョニングパッケージの最適化
             Write-Host ( $LangData.AppxProvisionedPackage_Optimize )
-            Optimize-AppXProvisionedPackages -Path $offlineDir
+            Optimize-AppXProvisionedPackages -Path $offlineDir | Out-Null
         }
 
         # インボックスドライバーの削除確認メッセージ
@@ -270,9 +375,12 @@ if ( $mountWindowsImage -eq $true ) {
         # Yesの場合、インボックスドライバーの削除を実行
         if ( $removeInboxDriver -eq $true) {
             # インボックスドライバーの削除
-            Get-WindowsPackage -Path $offlineDir | Where-Object { $_.PackageName -like "Microsoft-Windows-Ethernet-Client*" -and $_.PackageState -eq "Staged" } | Remove-WindowsPackage -Path $offlineDir
-            Get-WindowsPackage -Path $offlineDir | Where-Object { $_.PackageName -like "Microsoft-Windows-Wifi-Client*" -and $_.PackageState -eq "Staged" } | Remove-WindowsPackage -Path $offlineDir
+            Get-WindowsPackage -Path $offlineDir | Where-Object { $_.PackageName -like "Microsoft-Windows-Ethernet-Client*" -and $_.PackageState -eq "Installed" } | Remove-WindowsPackage -Path $offlineDir | Out-Null
+            Get-WindowsPackage -Path $offlineDir | Where-Object { $_.PackageName -like "Microsoft-Windows-Wifi-Client*" -and $_.PackageState -eq "Installed" } | Remove-WindowsPackage -Path $offlineDir | Out-Null
         }
+
+        # ドライバの追加
+        Add-WindowsDriverToImage -Install
 
         # イメージの保存確認メッセージ
         $actionName = $LangData.InstallWim_Save
@@ -295,7 +403,7 @@ if ( $mountWindowsImage -eq $true ) {
             Write-Host ( $LangData.InstallWim_Saving )
 
             # イメージ全体の最適化
-            Dism /Image:$offlineDir /Cleanup-Image /StartComponentCleanup /ResetBase
+            Repair-WindowsImage -Path $offlineDir -StartComponentCleanup -ResetBase
 
             Dismount-WindowsImage -Path $offlineDir -Save
             Export-WindowsImage -SourceImagePath $installWim -SourceIndex $index -DestinationImagePath (Join-Path $dvdDir "sources/install2.wim") -CheckIntegrity -CompressionType "max"
@@ -314,42 +422,5 @@ if ( $mountWindowsImage -eq $true ) {
     }
 }
 
-# ISOファイルの作成確認メッセージ
-$actionName = $LangData.ISOFile_Create
-$createIsoMsg = @{
-    Title   = $actionName
-    Message = $LangData.Confirm_Message -f $actionName
-    YesMsg  = $LangData.Confirm_YesMsg -f $actionName
-    NoMsg   = $LangData.Confirm_NoMsg -f $actionName
-}
-
-# ISOファイルを作成するか？
-[Boolean]$createIso = Show-YesNoDialog $createIsoMsg
-
-# Yesの場合、ISOファイルの作成
-if ( $createIso -eq $true ) {
-    # ISO出力ディレクトリの作成
-    $isoDir = Join-Path $workDir "ISO"
-    if ( -not ( Test-Path $isoDir )) { New-Item -ItemType Directory $isoDir }
-
-    [String]$Oscdimg = Join-Path $workDir "Bin\oscdimg.exe"
-    [String]$BIOSBoot = Join-Path $dvdDir "boot\etfsboot.com"
-    [String]$UEFIBoot = Join-Path $dvdDir "efi\microsoft\boot\efisys.bin"
-    [String]$ISOLabel = Read-Host $LangData.ISOFile_VolumeLabel
-    [String]$ISOFileName = Read-Host $LangData.ISOFile_FileName
-    $ISOFileName = Join-Path $isoDir "${ISOFileName}.iso"
-
-    # 既にISOファイルが存在する場合、上書き確認
-    if ( Test-Path $ISOFileName ) {
-        if ( -not ( Confirm-Overwrite $ISOFileName ) ) {
-            Write-Host ( $LangData.Overwrite_NoMsg -f $ISOFileName )
-            exit 1
-        }
-    }
-
-    if ( $null -eq $ISOLabel ) {
-        Start-Process -FilePath $Oscdimg -ArgumentList "-bootdata:2#p0,e,b${BIOSBoot}#pEF,e,b${UEFIBoot} -o -h -m -u2 -udfver102 ${dvdDir} ${ISOFileName}" -Wait
-    } else {
-        Start-Process -FilePath $Oscdimg -ArgumentList "-bootdata:2#p0,e,b${BIOSBoot}#pEF,e,b${UEFIBoot} -o -h -m -u2 -udfver102 -l${ISOLabel} ${dvdDir} ${ISOFileName}" -Wait
-    }
-}
+# ISOファイルの作成を実行
+New-IsoFile

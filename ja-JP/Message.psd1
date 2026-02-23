@@ -20,7 +20,7 @@
     InstallWim_NotFound = {0} ファイルが見つかりません。
     InstallWim_ImageIndex = ImageIndex 番号を1つ入力してください。
     InstallWim_ImageIndex_Invalid = 無効な ImageIndex 番号です。利用可能なインデックスを上記から選択してください。
-    InstallWim_Mount = Windowsイメージ {0} のオフラインマウント
+    InstallWim_Mount = イメージ {0} のマウント
     InstallWim_MountedInfo = {0} Build: {1}
     InstallWim_Save = 編集したイメージの保存
     InstallWim_Saving = 編集したイメージを保存中...
@@ -30,9 +30,13 @@
     AppxProvisionedPackage_Removing = プロビジョニングパッケージを削除中: {0}
     AppxProvisionedPackage_Optimize = パッケージの最適化中...
     InboxDriver_Remove = インボックスドライバーの削除
+    Driver_Add = ドライバの追加
+    Driver_Adding = {0} にあるドライバを追加中...
+    Driver_SwitchMissing = -Install または -Boot スイッチのいずれかを指定する必要があります。
     MountWindowsDir_DontOpen = アンマウントします。 {0} を開かないでください。
     ImageProcessing_Error = イメージ処理中にエラーが発生しました: {0}
     ISOFile_Create = ISOファイルの作成
     ISOFile_VolumeLabel = ISOボリュームラベルを入力してください
     ISOFile_FileName = ISOファイル名を入力してください
+    OSCDImg_NotFound = oscdimg.exe が {0} に見つかりません。ISOファイルの作成を中止します。
 '@
