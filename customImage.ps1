@@ -214,7 +214,7 @@ function New-IsoFile {
             }
         }
 
-        if ( $null -eq $ISOLabel ) {
+        if ( [string]::IsNullOrWhiteSpace($ISOLabel) ) {
             Start-Process -FilePath $Oscdimg -ArgumentList "-bootdata:2#p0,e,b${BIOSBoot}#pEF,e,b${UEFIBoot} -o -h -m -u2 -udfver102 ${dvdDir} ${ISOFileName}" -Wait
         } else {
             Start-Process -FilePath $Oscdimg -ArgumentList "-bootdata:2#p0,e,b${BIOSBoot}#pEF,e,b${UEFIBoot} -o -h -m -u2 -udfver102 -l${ISOLabel} ${dvdDir} ${ISOFileName}" -Wait
