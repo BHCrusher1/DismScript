@@ -17,14 +17,15 @@
     WorkDir_NotSelected = 作業ディレクトリが選択されていないため終了します。
     WorkDir_Set = 作業ディレクトリを {0} に設定しました。
     Iso_Extract = {0} フォルダに、isoファイルの中身を展開してください。
-    InstallWim_NotFound = {0} ファイルが見つかりません。
-    InstallWim_ImageIndex = ImageIndex 番号を1つ入力してください。
+    File_NotFound = {0} ファイルが見つかりません。
+    InstallWim_ImageIndex = マウントする ImageIndex 番号を1つ入力してください。
     InstallWim_ImageIndex_Invalid = 無効な ImageIndex 番号です。利用可能なインデックスを上記から選択してください。
     InstallWim_Mount = イメージ {0} のマウント
     InstallWim_MountedInfo = {0} Build: {1}
     InstallWim_Save = 編集したイメージの保存
     InstallWim_Saving = 編集したイメージを保存中...
     InstallWim_Discard = 編集したイメージを破棄します。
+    BootWim_Mount = Boot.wim のマウント
     AppxProvisionedPackage_Remove = プロビジョニングパッケージの削除
     AppxProvisionedPackage_ListFile_NotFound = RemoveAppsList.txt が {0} に見つかりません。パッケージの削除をスキップします。
     AppxProvisionedPackage_Removing = プロビジョニングパッケージを削除中: {0}

@@ -17,8 +17,8 @@
     WorkDir_NotSelected = No working directory selected, exiting.
     WorkDir_Set = Working directory set to {0}.
     Iso_Extract = Please extract the contents of the ISO to the {0} folder.
-    InstallWim_NotFound = {0} file not found.
-    InstallWim_ImageIndex = Please enter one ImageIndex number
+    File_NotFound = {0} file not found.
+    InstallWim_ImageIndex = Please enter one ImageIndex number to mount.
     InstallWim_ImageIndex_Invalid = Invalid ImageIndex number. Please select an available index from above.
     InstallWim_Mount = Offline mount of Windows Image {0}
     InstallWim_MountedInfo = {0} Build: {1}

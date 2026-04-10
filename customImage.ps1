@@ -134,33 +134,26 @@ function Add-WindowsDriverToImage {
         return
     }
 
-    $targets = @($driverCommonDir)
+    # Boot・Install共通のドライバ
+    $drivers = @($driverCommonDir)
+    $offlineDirPaths = @()
 
-    if ($Install) {
-        $targets += $driverInstallDir
-    }
-
+    # Bootへドライバをインストールする際のドライバパスとインストール先指定
     if ($Boot) {
-        $targets += $driverBootDir
+        $drivers += $driverBootDir
+        $offlineDirPaths += $offlineBootDirPaths
     }
 
-    # ドライバ追加確認メッセージ
-    $actionName = $LangData.Driver_Add
-    $addDriverMsg = @{
-        Title   = $actionName
-        Message = $LangData.Confirm_Message -f $actionName
-        YesMsg  = $LangData.Confirm_YesMsg -f $actionName
-        NoMsg   = $LangData.Confirm_NoMsg -f $actionName
+    # Installへドライバをインストールする際のドライバパスとインストール先指定
+    if ($Install) {
+        $drivers += $driverInstallDir
+        $offlineDirPaths += $offlineInstallDir
     }
 
-    # ドライバを追加するか？
-    [Boolean]$addDriver = Show-YesNoDialog $addDriverMsg
-
-    # Yesの場合、ドライバの追加
-    if ($addDriver) {
-        foreach ($driverPath in $targets) {
+    foreach ($offlineDirPath in $offlineDirPaths) {
+        foreach ($driverPath in $drivers) {
             Write-Host ($LangData.Driver_Adding -f $driverPath)
-            Add-WindowsDriver -Path $offlineDir -Driver $driverPath -Recurse -ForceUnsigned -ErrorAction SilentlyContinue | Out-Null
+            Add-WindowsDriver -Path $offlineDirPath -Driver $driverPath -Recurse | Out-Null
         }
     }
 }
@@ -265,6 +258,9 @@ Write-Host ( $LangData.WorkDir_Set -f $workDir )
 [String]$driverInstallDir = Join-Path $driverDir "Install"
 [String]$dvdDir = Join-Path $workDir "DVD"
 [String]$offlineDir = Join-Path $workDir "Offline"
+[String]$offlineBootDir = Join-Path $offlineDir "Boot"
+[String]$offlineInstallDir = Join-Path $offlineDir "Install"
+[String]$offlineRecoveryDir = Join-Path $offlineDir "Recovery"
 [String]$updateDir = Join-Path $workDir "Update"
 [String]$bootWim = Join-Path $dvdDir "sources/boot.wim"
 [String]$installWim = Join-Path $dvdDir "sources/install.wim"
@@ -275,7 +271,9 @@ if ( -not ( Test-Path $driverCommonDir )) { New-Item -ItemType Directory $driver
 if ( -not ( Test-Path $driverBootDir )) { New-Item -ItemType Directory $driverBootDir }
 if ( -not ( Test-Path $driverInstallDir )) { New-Item -ItemType Directory $driverInstallDir }
 if ( -not ( Test-Path $dvdDir )) { New-Item -ItemType Directory $dvdDir }
-if ( -not ( Test-Path $offlineDir )) { New-Item -ItemType Directory $offlineDir }
+if ( -not ( Test-Path $offlineBootDir )) { New-Item -ItemType Directory $offlineBootDir }
+if ( -not ( Test-Path $offlineInstallDir )) { New-Item -ItemType Directory $offlineInstallDir }
+if ( -not ( Test-Path $offlineRecoveryDir )) { New-Item -ItemType Directory $offlineRecoveryDir }
 if ( -not ( Test-Path $updateDir )) { New-Item -ItemType Directory $updateDir }
 
 # isoファイルの中身を展開してください
@@ -283,44 +281,72 @@ Write-Host ( $LangData.Iso_Extract -f $dvdDir )
 
 Pause
 
-# installWimファイルの存在チェック
+# install.wim の存在チェック
 if ( -not ( Test-Path $installWim )) {
-    Write-Error ( $LangData.InstallWim_NotFound -f $installWim )
+    Write-Error ( $LangData.File_NotFound -f $installWim )
     exit 1
 }
 
-$windowsImage = Get-WindowsImage -ImagePath $installWim
-$windowsImage | Format-Table -Property ImageIndex, ImageName, ImageDescription
+$installWimInfo = Get-WindowsImage -ImagePath $installWim
+$installWimInfo | Format-Table -Property ImageIndex, ImageName, ImageDescription
 [int]$index = Read-Host $LangData.InstallWim_ImageIndex
 
 # インデックスの検証
-if ( -not ( $windowsImage | Where-Object { $_.ImageIndex -eq $index } )) {
+if ( -not ( $installWimInfo | Where-Object { $_.ImageIndex -eq $index } )) {
     Write-Error $LangData.InstallWim_ImageIndex_Invalid
     exit 1
 }
 
-# 選択したイメージの情報取得
-$windowsImageInfo = Get-WindowsImage -ImagePath $installWim -Index $index
+# install.wim の情報取得
+$installWimMountInfo = Get-WindowsImage -ImagePath $installWim -Index $index
 
-# Windowsイメージのマウント確認メッセージ
-$actionName = $LangData.InstallWim_Mount -f $windowsImageInfo.ImageName
-$mountWindowsImageMsg = @{
-    Title   = $LangData.InstallWim_Mount -f $windowsImageInfo.ImageName
+# install.wim のマウント確認メッセージ
+$actionName = $LangData.InstallWim_Mount -f $installWimMountInfo.ImageName
+$installWimMountMsg = @{
+    Title   = $LangData.InstallWim_Mount -f $installWimMountInfo.ImageName
     Message = $LangData.Confirm_Message -f $actionName
     YesMsg  = $LangData.Confirm_YesMsg -f $actionName
     NoMsg   = $LangData.Confirm_NoMsg -f $actionName
 }
-# Windowsイメージ(wimファイル)をマウントするか？
-[Boolean]$mountWindowsImage = Show-YesNoDialog $mountWindowsImageMsg
+# install.wimをマウントするか？
+[Boolean]$mountInstallWim = Show-YesNoDialog $installWimMountMsg
 
 # Yesの場合、wimファイルのマウント
-if ( $mountWindowsImage -eq $true ) {
+if ( $mountInstallWim -eq $true ) {
     try {
+        [Boolean]$imageUnmountCompleted = $false
+        [Boolean]$mountBootWim = $false
+        [Array]$offlineBootDirPaths = @()
+
+        # boot.wim の存在チェックし、あればマウントするか確認
+        if ( Test-Path $bootWim ) {
+            $actionName = $LangData.BootWim_Mount
+            $bootWimMountMsg = @{
+                Title   = $LangData.BootWim_Mount
+                Message = $LangData.Confirm_Message -f $actionName
+                YesMsg  = $LangData.Confirm_YesMsg -f $actionName
+                NoMsg   = $LangData.Confirm_NoMsg -f $actionName
+            }
+            # boot.wimをマウントするか？
+            [Boolean]$mountBootWim = Show-YesNoDialog $bootWimMountMsg
+
+            if ( $mountBootWim -eq $true ) {
+                $bootWimImages = Get-WindowsImage -ImagePath $bootWim
+                foreach ( $bootWimImage in $bootWimImages ) {
+                    [int]$indexNumber = $bootWimImage.ImageIndex
+                    $offlineBootDirIndex = Join-Path $offlineBootDir $indexNumber
+                    if ( -not ( Test-Path $offlineBootDirIndex )) { New-Item -ItemType Directory $offlineBootDirIndex }
+                    Mount-WindowsImage -ImagePath $bootWim -Index:$indexNumber -Path:$offlineBootDirIndex
+                    $offlineBootDirPaths += $offlineBootDirIndex
+                }
+            }
+        }
+
         # イメージのマウント
-        Mount-WindowsImage -ImagePath $installWim -Index:$index -Path:$offlineDir
+        Mount-WindowsImage -ImagePath $installWim -Index:$index -Path:$offlineInstallDir
 
         # マウントしたイメージのバージョン情報取得
-        Write-Host ( $LangData.InstallWim_MountedInfo -f $windowsImageInfo.ImageName, $windowsImageInfo.Version )
+        Write-Host ( $LangData.InstallWim_MountedInfo -f $installWimMountInfo.ImageName, $installWimMountInfo.Version )
 
         # プロビジョニングパッケージの削除確認メッセージ
         $actionName = $LangData.AppxProvisionedPackage_Remove
@@ -348,16 +374,16 @@ if ( $mountWindowsImage -eq $true ) {
             }
 
             # オフラインイメージのプロビジョニングパッケージの取得
-            $AppxProvisionedPackage = Get-AppxProvisionedPackage -Path $offlineDir
+            $AppxProvisionedPackage = Get-AppxProvisionedPackage -Path $offlineInstallDir
 
             # プロビジョニングパッケージの削除
             foreach ( $DisplayName in $RemoveAppsList ) {
                 Write-Host ( $LangData.AppxProvisionedPackage_Removing -f $DisplayName )
-                $AppxProvisionedPackage | Where-Object { $_.DisplayName -like $DisplayName } | Remove-AppxProvisionedPackage -Path $offlineDir | Out-Null
+                $AppxProvisionedPackage | Where-Object { $_.DisplayName -like $DisplayName } | Remove-AppxProvisionedPackage -Path $offlineInstallDir | Out-Null
             }
             # プロビジョニングパッケージの最適化
             Write-Host ( $LangData.AppxProvisionedPackage_Optimize )
-            Optimize-AppXProvisionedPackages -Path $offlineDir | Out-Null
+            Optimize-AppXProvisionedPackages -Path $offlineInstallDir | Out-Null
         }
 
         # インボックスドライバーの削除確認メッセージ
@@ -375,12 +401,30 @@ if ( $mountWindowsImage -eq $true ) {
         # Yesの場合、インボックスドライバーの削除を実行
         if ( $removeInboxDriver -eq $true) {
             # インボックスドライバーの削除
-            Get-WindowsPackage -Path $offlineDir | Where-Object { $_.PackageName -like "Microsoft-Windows-Ethernet-Client*" -and $_.PackageState -eq "Installed" } | Remove-WindowsPackage -Path $offlineDir | Out-Null
-            Get-WindowsPackage -Path $offlineDir | Where-Object { $_.PackageName -like "Microsoft-Windows-Wifi-Client*" -and $_.PackageState -eq "Installed" } | Remove-WindowsPackage -Path $offlineDir | Out-Null
+            Get-WindowsPackage -Path $offlineInstallDir | Where-Object { $_.PackageName -like "Microsoft-Windows-Ethernet-Client*" -and $_.PackageState -eq "Installed" } | Remove-WindowsPackage -Path $offlineInstallDir | Out-Null
+            Get-WindowsPackage -Path $offlineInstallDir | Where-Object { $_.PackageName -like "Microsoft-Windows-Wifi-Client*" -and $_.PackageState -eq "Installed" } | Remove-WindowsPackage -Path $offlineInstallDir | Out-Null
         }
 
         # ドライバの追加
-        Add-WindowsDriverToImage -Install
+        # ドライバ追加確認メッセージ
+        $actionName = $LangData.Driver_Add
+        $addDriverMsg = @{
+            Title   = $actionName
+            Message = $LangData.Confirm_Message -f $actionName
+            YesMsg  = $LangData.Confirm_YesMsg -f $actionName
+            NoMsg   = $LangData.Confirm_NoMsg -f $actionName
+        }
+
+        # ドライバを追加するか？
+        [Boolean]$addDriver = Show-YesNoDialog $addDriverMsg
+
+        # ドライバを追加する場合install.wimに対しての他、boot.wimもマウントされていればboot.wimにも追加する
+        if ($addDriver) {
+            if ( $mountBootWim -eq $true ) {
+                Add-WindowsDriverToImage -Boot
+            }
+            Add-WindowsDriverToImage -Install
+        }
 
         # イメージの保存確認メッセージ
         $actionName = $LangData.InstallWim_Save
@@ -403,19 +447,53 @@ if ( $mountWindowsImage -eq $true ) {
             Write-Host ( $LangData.InstallWim_Saving )
 
             # イメージ全体の最適化
-            Repair-WindowsImage -Path $offlineDir -StartComponentCleanup -ResetBase
+            if ( $mountBootWim -eq $true ) {
+                foreach ( $offlineBootDirPath in $offlineBootDirPaths ) {
+                    Repair-WindowsImage -Path $offlineBootDirPath -StartComponentCleanup -ResetBase
+                }
+            }
+            Repair-WindowsImage -Path $offlineInstallDir -StartComponentCleanup -ResetBase
 
-            Dismount-WindowsImage -Path $offlineDir -Save
-            Export-WindowsImage -SourceImagePath $installWim -SourceIndex $index -DestinationImagePath (Join-Path $dvdDir "sources/install2.wim") -CheckIntegrity -CompressionType "max"
-            Move-Item -Path ( Join-Path $dvdDir "sources/install2.wim" ) -Destination ( Join-Path $dvdDir "sources/install.wim" ) -Force
+            # イメージのアンマウントと保存
+            if ( $mountBootWim -eq $true ) {
+                foreach ( $offlineBootDirPath in $offlineBootDirPaths ) {
+                    Dismount-WindowsImage -Path $offlineBootDirPath -Save
+                }
+            }
+            Dismount-WindowsImage -Path $offlineInstallDir -Save
+            $imageUnmountCompleted = $true
+
+            # 保存後のファイル移動
+            if ( $mountBootWim -eq $true ) {
+                $bootWimExportPath = Join-Path $dvdDir "sources/boot2.wim"
+                if ( Test-Path $bootWimExportPath ) {
+                    Remove-Item -Path $bootWimExportPath -Force
+                }
+                foreach ( $bootWimImage in $bootWimImages ) {
+                    Export-WindowsImage -SourceImagePath $bootWim -SourceIndex $bootWimImage.ImageIndex -DestinationImagePath $bootWimExportPath -CheckIntegrity -CompressionType "max"
+                }
+                Move-Item -Path $bootWimExportPath -Destination $bootWim -Force
+            }
+            $installWimExportPath = Join-Path $dvdDir "sources/install2.wim"
+            if ( Test-Path $installWimExportPath ) {
+                Remove-Item -Path $installWimExportPath -Force
+            }
+            Export-WindowsImage -SourceImagePath $installWim -SourceIndex $index -DestinationImagePath $installWimExportPath -CheckIntegrity -CompressionType "max"
+            Move-Item -Path $installWimExportPath -Destination (Join-Path $dvdDir "sources/install.wim") -Force
         } else {
+            if ( $mountBootWim -eq $true ) {
+                foreach ( $offlineBootDirPath in $offlineBootDirPaths ) {
+                    Dismount-WindowsImage -Path $offlineBootDirPath -Discard
+                }
+            }
+            Dismount-WindowsImage -Path $offlineInstallDir -Discard
+            $imageUnmountCompleted = $true
             Write-Host ( $LangData.InstallWim_Discard )
         }
     } catch {
         Write-Error ( $LangData.ImageProcessing_Error -f $_.Exception.Message )
     } finally {
-        $mountedCheck = Get-WindowsImage -Mounted | Where-Object { $_.MountPath -eq $offlineDir }
-        if ($null -ne $mountedCheck) {
+        if ( -not $imageUnmountCompleted ) {
             Dismount-WindowsImageDiscard
             exit 1
         }
