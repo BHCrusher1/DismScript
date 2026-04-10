@@ -25,6 +25,7 @@
     InstallWim_Save = Saving the edited image
     InstallWim_Saving = Saving the edited image...
     InstallWim_Discard = Discarding the edited image.
+    BootWim_Mount = Mount Boot.wim
     AppxProvisionedPackage_Remove = Removing provisioned packages
     AppxProvisionedPackage_ListFile_NotFound = RemoveAppsList.txt not found at {0}. Skipping package removal.
     AppxProvisionedPackage_Removing = Removing AppxProvisionedPackage: {0}
